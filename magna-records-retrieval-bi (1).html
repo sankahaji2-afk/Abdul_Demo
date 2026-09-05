@@ -1,0 +1,1093 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Records Retrieval — Operations Intelligence</title>
+<style>
+:root{
+  --ink:#0B1017; --panel:#121A24; --panel2:#16202C; --rule:#24313F; --rule2:#1B2531;
+  --bone:#E8E6DF; --paper:#C7C1B3; --muted:#8B97A6; --dim:#5C6979;
+  --stamp:#D2564B; --amber:#DDA13A; --sage:#4F9B7C; --indigo:#7189CE; --slate:#43566B;
+  --serif: "Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+  --sans: Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink); color:var(--bone); font-family:var(--sans);
+  font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1360px;margin:0 auto;padding:28px 24px 80px}
+.num{font-variant-numeric:tabular-nums lining-nums}
+
+/* masthead */
+.masthead{display:flex;flex-wrap:wrap;gap:20px;align-items:flex-end;justify-content:space-between;
+  padding-bottom:18px;border-bottom:1px solid var(--rule)}
+.mark{font-family:var(--serif);font-size:29px;line-height:1.1;letter-spacing:.1px}
+.mark span{display:block;font-family:var(--sans);font-size:12.5px;color:var(--muted);
+  letter-spacing:.02em;margin-top:7px;font-weight:400}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+select,button{font-family:inherit;font-size:12.5px;color:var(--bone);background:var(--panel2);
+  border:1px solid var(--rule);border-radius:3px;padding:7px 10px;cursor:pointer}
+select:hover,button:hover{border-color:var(--slate)}
+select:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--indigo);outline-offset:2px}
+.asof{font-size:12.5px;color:var(--muted);text-align:right;line-height:1.4}
+.asof b{color:var(--paper);font-weight:500}
+
+/* provenance */
+.provenance{margin:22px 0 4px;padding:11px 14px;border:1px solid var(--rule);
+  border-left:2px solid var(--amber);border-radius:3px;background:var(--panel);
+  font-size:12.5px;color:var(--muted);line-height:1.6;max-width:82ch}
+.provenance b{color:var(--paper);font-weight:500}
+
+/* readout */
+.readout{margin:24px 0 26px;max-width:74ch}
+.readout p{font-family:var(--serif);font-size:20px;line-height:1.45;margin:0;color:var(--bone)}
+.readout p em{font-style:normal;border-bottom:1px solid var(--stamp);padding-bottom:1px}
+.readout .sub{font-family:var(--sans);font-size:13px;color:var(--muted);margin-top:12px;line-height:1.6}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--rule2);border-radius:4px;padding:18px 18px 16px}
+.panel h2{font-family:var(--serif);font-size:16px;font-weight:400;margin:0 0 3px}
+.panel .note{font-size:12px;color:var(--muted);margin:0 0 16px;line-height:1.5}
+.grid{display:grid;gap:14px;margin-top:14px}
+.g2{grid-template-columns:1fr 1fr}
+.g53{grid-template-columns:1.55fr 1fr}
+.g35{grid-template-columns:1fr 1.55fr}
+@media(max-width:940px){.g2,.g53,.g35{grid-template-columns:1fr}}
+
+/* hero strip */
+.hero{background:var(--panel);border:1px solid var(--rule2);border-radius:4px;padding:18px}
+.hero-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:14px;margin-bottom:4px}
+.hero-head h2{font-family:var(--serif);font-size:17px;font-weight:400;margin:0}
+.hero-head .legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11.5px;color:var(--muted)}
+.hero-head .legend i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.hero .note{font-size:12px;color:var(--muted);margin:0 0 10px}
+#stripTip{font-size:12px;color:var(--paper);height:17px;margin-top:2px}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-top:14px}
+@media(max-width:1080px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--panel);border:1px solid var(--rule2);border-radius:4px;padding:14px 14px 12px;
+  cursor:pointer;text-align:left;width:100%;position:relative}
+.kpi:hover{border-color:var(--slate);background:var(--panel2)}
+.kpi .lab{font-size:11.5px;color:var(--muted);line-height:1.35;min-height:31px}
+.kpi .val{font-size:26px;font-family:var(--serif);margin-top:6px;line-height:1}
+.kpi .val small{font-size:13px;color:var(--paper);font-family:var(--sans)}
+.kpi .delta{font-size:11.5px;margin-top:7px;color:var(--muted)}
+.kpi .delta b{font-weight:500}
+.up{color:var(--stamp)} .down{color:var(--sage)} .flat{color:var(--muted)}
+.kpi .def{position:absolute;top:11px;right:11px;font-size:10.5px;color:var(--dim);
+  border:1px solid var(--rule);border-radius:2px;padding:0 4px;line-height:15px}
+.kpi:hover .def{color:var(--paper);border-color:var(--slate)}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{text-align:left;font-weight:500;color:var(--muted);font-size:11.5px;
+  padding:0 10px 7px 0;border-bottom:1px solid var(--rule)}
+td{padding:8px 10px 8px 0;border-bottom:1px solid var(--rule2);color:var(--paper)}
+tr:last-child td{border-bottom:none}
+td.n,th.n{text-align:right;padding-right:0;font-variant-numeric:tabular-nums}
+td b{color:var(--bone);font-weight:500}
+.bar{height:5px;border-radius:1px;background:var(--indigo);display:block}
+.barwrap{background:var(--rule2);border-radius:1px;height:5px;width:100%;margin-top:5px}
+
+/* trust strip */
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:14px}
+@media(max-width:900px){.trust{grid-template-columns:repeat(2,1fr)}}
+.tcard{background:var(--panel);border:1px solid var(--rule2);border-left:2px solid var(--sage);
+  border-radius:3px;padding:12px 14px}
+.tcard.warn{border-left-color:var(--amber)}
+.tcard .src{font-size:12.5px;color:var(--bone)}
+.tcard .meta{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.5}
+
+/* drawer */
+.scrim{position:fixed;inset:0;background:rgba(6,9,13,.62);opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim.on{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;right:0;height:100%;width:min(560px,94vw);background:var(--panel);
+  border-left:1px solid var(--rule);transform:translateX(100%);transition:transform .22s ease;
+  overflow-y:auto;padding:26px 26px 60px;z-index:5}
+.drawer.on{transform:translateX(0)}
+@media(prefers-reduced-motion:reduce){.drawer,.scrim{transition:none}}
+.drawer h3{font-family:var(--serif);font-size:21px;font-weight:400;margin:0 0 6px}
+.drawer .plain{font-size:13.5px;color:var(--paper);line-height:1.6;margin:0 0 18px}
+.dl{display:grid;grid-template-columns:118px 1fr;gap:7px 14px;font-size:12.5px;margin-bottom:20px}
+.dl dt{color:var(--muted)} .dl dd{margin:0;color:var(--paper)}
+pre{background:var(--ink);border:1px solid var(--rule2);border-radius:3px;padding:14px;
+  overflow-x:auto;font-size:11.5px;line-height:1.65;color:#BFCBD8;margin:0}
+pre .k{color:#7189CE} pre .s{color:#9FBF8E} pre .c{color:#5C6979;font-style:italic} pre .f{color:#DDA13A}
+.closeX{position:absolute;top:20px;right:22px;background:none;border:none;color:var(--muted);font-size:19px;padding:4px 8px}
+
+/* footer */
+footer{margin-top:34px;padding-top:20px;border-top:1px solid var(--rule);
+  font-size:12px;color:var(--dim);line-height:1.7;max-width:88ch}
+footer b{color:var(--muted);font-weight:500}
+.sig{margin-top:14px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="mark">Records Retrieval
+      <span>Operations intelligence &middot; Sigma on Snowflake &middot; portfolio demonstration, simulated data</span>
+    </div>
+    <div class="controls">
+      <select id="fSeg" aria-label="Filter by client segment"></select>
+      <select id="fRt" aria-label="Filter by record type"></select>
+      <button id="openDefs">Metric definitions</button>
+      <div class="asof">Data as of <b>Fri 4 Sep 2026</b><br><span id="rowcount"></span></div>
+    </div>
+  </div>
+
+  <div class="provenance">
+    <b>Worked example on simulated data.</b> Every figure below is generated in the browser from a
+    fixed seed. The clients, custodians and requests are invented, and no Magna operating figure is
+    used, estimated or implied. What is being demonstrated is the analysis and the data model behind
+    it, not a view of anyone&rsquo;s performance.
+  </div>
+  <div class="readout" id="readout"></div>
+
+  <div class="hero">
+    <div class="hero-head">
+      <h2 id="heroTitle">The open backlog, one mark per request</h2>
+      <div class="legend" id="heroLegend"></div>
+    </div>
+    <p class="note">Horizontal position is days since the request was opened. Each lane is the stage the
+      request sits in today. The shaded field is past the client&rsquo;s contracted delivery window.</p>
+    <div id="strip"></div>
+    <div id="stripTip">Point at the chart to read a single day.</div>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grid g53">
+    <div class="panel">
+      <h2>Turnaround, week by week</h2>
+      <p class="note">Delivered requests grouped by delivery week. The median holds steady while the
+        90th percentile pulls away &mdash; an average would hide this entirely.</p>
+      <div id="trend"></div>
+    </div>
+    <div class="panel">
+      <h2>Delivery inside the contracted window</h2>
+      <p class="note">Share of delivered requests inside each client&rsquo;s own target, six months.
+        Targets differ by contract, so the comparison is against each client&rsquo;s own bar.</p>
+      <div id="clients"></div>
+    </div>
+  </div>
+
+  <div class="grid g2">
+    <div class="panel">
+      <h2>Where the aged work sits</h2>
+      <p class="note">Share of all requests against share of the backlog older than 30 days. A custodian
+        group above the diagonal is consuming more attention than its volume warrants.</p>
+      <div id="groups"></div>
+    </div>
+    <div class="panel">
+      <h2>Why requests get re-worked</h2>
+      <p class="note">Authorization and routing defects found in the last eight weeks. Each one sends
+        the request back to the authorization stage and adds days.</p>
+      <div id="defects"></div>
+    </div>
+  </div>
+
+  <div class="grid g35">
+    <div class="panel">
+      <h2>Backlog by age and stage</h2>
+      <p class="note">Open requests only.</p>
+      <div id="aging"></div>
+    </div>
+    <div class="panel">
+      <h2>Custodians holding the oldest work</h2>
+      <p class="note">Ranked by share of the 30-day-plus backlog. Statutory column is the share of that
+        custodian&rsquo;s open requests already past the response deadline in the requesting state.</p>
+      <div id="custodians"></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <h2>Source health</h2>
+    <p class="note">Every figure above is only as good as the load behind it. This strip is checked
+      before the page is trusted in a meeting.</p>
+    <div class="trust" id="trust"></div>
+  </div>
+
+  <footer>
+    <b>About this build.</b> This is a portfolio demonstration, not a Magna asset. It runs on a
+    synthetic dataset of 9,400 records-retrieval requests generated in the browser from a fixed seed &mdash;
+    no client, custodian, or patient data of any kind. Every number on the page, including the
+    percentiles and the source-health counts, is computed live from that dataset, so the filters
+    genuinely re-cut the analysis rather than swapping canned images.
+    <br><br>
+    <b>What it is standing in for.</b> In production this would be a Sigma workbook over Snowflake:
+    a dbt-modelled request fact at one row per retrieval request, event-level stage timestamps,
+    conformed client and custodian dimensions, and certified metric definitions carried in the
+    semantic model rather than re-derived in each workbook. The definitions drawer shows the SQL
+    behind each headline number and the exclusions applied to it.
+    <div class="sig">Built by Abdul &middot; September 2026</div>
+  </footer>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+  <button class="closeX" id="closeDrawer" aria-label="Close definitions">&times;</button>
+  <div id="drawerBody"></div>
+</aside>
+
+<script>
+/* ============================================================
+   Synthetic Records Retrieval dataset + aggregation engine.
+   Deterministic (seeded) so every figure on the page ties out.
+   ============================================================ */
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+var DAY = 86400000;
+var AS_OF = Date.UTC(2026, 8, 4);          // Fri 4 Sep 2026
+var WINDOW_WEEKS = 26;
+var START = AS_OF - WINDOW_WEEKS * 7 * DAY;
+
+var CLIENTS = [
+  {name:'Hollings & Marr LLP',      seg:'Plaintiff firm',    w:16, sla:30, authRisk:1.35},
+  {name:'Cardinal Mutual Insurance',seg:'Insurance carrier', w:14, sla:30, authRisk:0.70},
+  {name:'Bergstrom Vance PC',       seg:'Defense firm',      w:11, sla:25, authRisk:0.80},
+  {name:'Statewide Casualty Group', seg:'Insurance carrier', w:12, sla:30, authRisk:0.75},
+  {name:'Delacroix & Pine LLP',     seg:'Plaintiff firm',    w:10, sla:30, authRisk:1.00},
+  {name:'Meridian Risk Partners',   seg:'TPA',               w: 9, sla:30, authRisk:0.85},
+  {name:'Ohlson Trial Group',       seg:'Plaintiff firm',    w: 8, sla:21, authRisk:1.90},
+  {name:'Pacific Indemnity Co.',    seg:'Insurance carrier', w: 8, sla:35, authRisk:0.65},
+  {name:'Varela Injury Law',        seg:'Plaintiff firm',    w: 7, sla:25, authRisk:1.15},
+  {name:'County of Ashford',        seg:'Government',        w: 5, sla:45, authRisk:0.60}
+];
+
+var RECORD_TYPES = [
+  {name:'Medical chart', w:38},
+  {name:'Itemized billing', w:22},
+  {name:'Radiology / film', w:12},
+  {name:'Pharmacy', w:9},
+  {name:'Employment / wage', w:9},
+  {name:'Police / EMS', w:10}
+];
+
+var CUSTODIANS = [
+  {name:'Riverbend Health System',   group:'Hospital system',   base:21, sd:9,  w:11, drift:1},
+  {name:'St. Auburn Medical Center', group:'Hospital system',   base:19, sd:8,  w: 9, drift:1},
+  {name:'Northlake Regional',        group:'Hospital system',   base:23, sd:10, w: 8, drift:1},
+  {name:'Pinecrest Health Partners', group:'Hospital system',   base:17, sd:7,  w: 6, drift:0},
+  {name:'Grove Family Practice',     group:'Independent clinic',base:11, sd:5,  w: 9, drift:0},
+  {name:'Alder Street Clinic',       group:'Independent clinic',base:12, sd:5,  w: 8, drift:0},
+  {name:'Copper Valley Imaging',     group:'Imaging center',    base:14, sd:6,  w: 7, drift:0},
+  {name:'Halston Radiology Group',   group:'Imaging center',    base:15, sd:7,  w: 5, drift:0},
+  {name:'MedBill Solutions',         group:'Billing company',   base:16, sd:7,  w: 7, drift:0},
+  {name:'Apex Revenue Services',     group:'Billing company',   base:18, sd:8,  w: 5, drift:1},
+  {name:'Trenton EMS Records',       group:'Government / EMS',  base:26, sd:12, w: 6, drift:0},
+  {name:'Ashford County Sheriff',    group:'Government / EMS',  base:24, sd:11, w: 5, drift:0},
+  {name:'Bellhaven Pharmacy Group',  group:'Pharmacy',          base: 9, sd:4,  w: 7, drift:0},
+  {name:'Kessler Employer Services', group:'Employer HR',       base:17, sd:8,  w: 7, drift:0}
+];
+
+var STATES = [
+  {code:'CA', statutory:15, w:14},{code:'TX', statutory:15, w:13},
+  {code:'FL', statutory:30, w:12},{code:'NY', statutory:10, w:11},
+  {code:'IL', statutory:30, w: 9},{code:'PA', statutory:30, w: 8},
+  {code:'GA', statutory:30, w: 8},{code:'OH', statutory:30, w: 7},
+  {code:'NJ', statutory:30, w: 7},{code:'AZ', statutory:30, w: 6},
+  {code:'NC', statutory:30, w: 5}
+];
+
+var DEFECTS = [
+  {reason:'DOB or name mismatch on authorization', w:26, addDays:7},
+  {reason:'Authorization missing patient signature', w:21, addDays:8},
+  {reason:'Wrong custodian or facility named', w:16, addDays:11},
+  {reason:'Authorization expired past 90 days', w:14, addDays:6},
+  {reason:'Date range not specified', w:12, addDays:5},
+  {reason:'Custodian fee advance not received', w:11, addDays:9}
+];
+
+var STAGES = ['Intake','Authorization','Request served','In follow-up','Records in / QC'];
+
+function pick(rng, arr){
+  var tot = 0, i;
+  for(i=0;i<arr.length;i++) tot += arr[i].w;
+  var r = rng()*tot;
+  for(i=0;i<arr.length;i++){ r -= arr[i].w; if(r<=0) return arr[i]; }
+  return arr[arr.length-1];
+}
+function gauss(rng){
+  var u=0,v=0; while(u===0)u=rng(); while(v===0)v=rng();
+  return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);
+}
+
+function buildOrders(){
+  var rng = mulberry32(20260904);
+  var orders = [];
+  var n = 9400;
+  for(var i=0;i<n;i++){
+    var t = rng();                                  // 0 = oldest, 1 = newest
+    var opened = START + Math.floor(t * WINDOW_WEEKS*7*DAY);
+    var d = new Date(opened);
+    var dow = d.getUTCDay();
+    if(dow===0) opened += DAY;                      // shift weekend intake
+    if(dow===6) opened += 2*DAY;
+
+    var client = pick(rng, CLIENTS);
+    var rt     = pick(rng, RECORD_TYPES);
+    var cust   = pick(rng, CUSTODIANS);
+    var st     = pick(rng, STATES);
+
+    // Record type steers custodian mix toward something plausible.
+    if(rt.name==='Radiology / film' && cust.group!=='Imaging center' && rng()<0.72)
+      cust = rng()<0.5 ? CUSTODIANS[6] : CUSTODIANS[7];
+    if(rt.name==='Police / EMS' && cust.group!=='Government / EMS')
+      cust = rng()<0.5 ? CUSTODIANS[10] : CUSTODIANS[11];
+    if(rt.name==='Pharmacy' && rng()<0.8) cust = CUSTODIANS[12];
+    if(rt.name==='Employment / wage' && rng()<0.8) cust = CUSTODIANS[13];
+    if(rt.name==='Itemized billing' && cust.group==='Imaging center') cust = CUSTODIANS[8];
+
+    var progress = (opened - START) / (WINDOW_WEEKS*7*DAY);
+
+    // Cycle time. Hospital systems and one billing vendor degrade over the window.
+    var driftMult = 1 + (cust.drift ? 0.55*progress : 0.05*progress);
+    var tat = cust.base*driftMult + gauss(rng)*cust.sd;
+    if(rt.name==='Radiology / film') tat += 3;      // film production lag
+    if(rt.name==='Itemized billing') tat += 1.5;
+    tat = Math.max(2, tat);
+
+    // Stalls: custodian goes silent, fee dispute, or repeated re-serves.
+    var pStall = 0.028 + 0.075*progress*(cust.drift ? 2.1 : 0.55);
+    var stalled = rng() < pStall;
+    if(stalled) tat += 18 + Math.abs(gauss(rng))*34;
+
+    // Authorization defects -> rework loop.
+    var defect = null;
+    var pDefect = 0.085 * client.authRisk * (rt.name==='Medical chart' ? 1.25 : 1) *
+                  (1 + 0.30*progress);
+    if(rng() < pDefect){
+      defect = pick(rng, DEFECTS);
+      tat += defect.addDays + Math.abs(gauss(rng))*3;
+      tat = Math.round(tat);
+    }
+
+    var age = Math.floor((AS_OF - opened)/DAY);
+    tat = Math.round(tat);
+
+    // Outcome
+    var o = {
+      id: 'RR-' + (100000+i),
+      opened: opened,
+      client: client.name, seg: client.seg, sla: client.sla,
+      recordType: rt.name,
+      custodian: cust.name, custGroup: cust.group,
+      state: st.code, statutory: st.statutory,
+      defect: defect ? defect.reason : null,
+      age: age
+    };
+
+    var roll = rng();
+    if(roll < 0.047){                                // cancelled by client
+      o.status = 'Cancelled';
+      o.closed = opened + Math.floor(tat*0.5)*DAY;
+    } else if(roll < 0.047+0.058){                   // custodian has no responsive records
+      o.status = 'No records';
+      o.closed = opened + Math.round(tat*0.8)*DAY;
+      o.tat = Math.round(tat*0.8);
+    } else if(age >= tat){
+      o.status = 'Delivered';
+      o.closed = opened + tat*DAY;
+      o.tat = tat;
+      o.slaMet = tat <= client.sla;
+    } else {
+      o.status = 'Open';
+      var frac = age / tat;
+      var si = frac<0.10 ? 0 : frac<0.30 ? 1 : frac<0.45 ? 2 : frac<0.85 ? 3 : 4;
+      if(o.defect && frac>0.15 && frac<0.55) si = 1;  // stuck back in authorization
+      if(stalled && frac>0.25) si = 3;
+      o.stage = STAGES[si];
+      o.stalled = stalled;
+      o.pastSla = age > client.sla;
+      o.pastStatutory = age > st.statutory;
+    }
+    if(o.status!=='Open' && o.closed > AS_OF){ o.status='Open'; o.stage=STAGES[3]; o.pastSla = age>client.sla; o.pastStatutory = age>st.statutory; delete o.tat; delete o.slaMet; }
+
+    // Economics: custodian pass-through + Magna service fee.
+    var custFee = 22 + Math.abs(gauss(rng))*38 + (rt.name==='Radiology / film'?45:0) +
+                  (cust.group==='Hospital system'?18:0);
+    o.custodianFee = Math.round(custFee*100)/100;
+    o.serviceFee = client.seg==='Insurance carrier' ? 34 : 42;
+    o.touches = 2 + Math.round(Math.abs(gauss(rng))*2.2) + (o.defect?3:0) +
+                (cust.group==='Hospital system'?1:0);
+
+    orders.push(o);
+  }
+  return orders;
+}
+
+/* ---------- stats helpers ---------- */
+function pct(arr, p){
+  if(!arr.length) return 0;
+  var s = arr.slice().sort(function(a,b){return a-b;});
+  var idx = Math.min(s.length-1, Math.max(0, Math.ceil(p/100*s.length)-1));
+  return s[idx];
+}
+function mean(a){ return a.length ? a.reduce(function(x,y){return x+y;},0)/a.length : 0; }
+function weekKey(ts){
+  var d = new Date(ts); var day = d.getUTCDay();
+  var monday = ts - ((day+6)%7)*DAY;
+  return Math.floor(monday/DAY);
+}
+function fmtWeek(k){
+  var d = new Date(k*DAY);
+  return (d.getUTCMonth()+1) + '/' + d.getUTCDate();
+}
+
+/* ---------- aggregation ---------- */
+function aggregate(orders, filter){
+  var f = orders.filter(function(o){
+    if(filter.seg !== 'All' && o.seg !== filter.seg) return false;
+    if(filter.rt  !== 'All' && o.recordType !== filter.rt) return false;
+    return true;
+  });
+
+  var open      = f.filter(function(o){return o.status==='Open';});
+  var completed = f.filter(function(o){return o.status==='Delivered';});
+  var recent    = completed.filter(function(o){return o.closed >= AS_OF - 28*DAY;});
+  var prior     = completed.filter(function(o){return o.closed < AS_OF-28*DAY && o.closed >= AS_OF-56*DAY;});
+
+  function kpiBlock(set){
+    var tats = set.map(function(o){return o.tat;});
+    var slaMet = set.filter(function(o){return o.slaMet;}).length;
+    return {
+      n: set.length,
+      p50: pct(tats,50),
+      p90: pct(tats,90),
+      sla: set.length ? slaMet/set.length : 0
+    };
+  }
+  var cur = kpiBlock(recent), pre = kpiBlock(prior);
+
+  var recentAll = f.filter(function(o){return (o.closed||o.opened) >= AS_OF-28*DAY;});
+  var fpy = recentAll.length
+    ? recentAll.filter(function(o){return !o.defect;}).length / recentAll.length : 0;
+  var fpyPrior = (function(){
+    var s = f.filter(function(o){var t=(o.closed||o.opened); return t<AS_OF-28*DAY && t>=AS_OF-56*DAY;});
+    return s.length ? s.filter(function(o){return !o.defect;}).length/s.length : 0;
+  })();
+
+  var closedRecent = f.filter(function(o){return o.closed && o.closed>=AS_OF-28*DAY;});
+  var noRec = closedRecent.length
+    ? closedRecent.filter(function(o){return o.status==='No records';}).length/closedRecent.length : 0;
+  var costPer = recent.length
+    ? mean(recent.map(function(o){return o.custodianFee + o.touches*11.5;})) : 0;
+
+  // stages
+  var stages = STAGES.map(function(s){
+    var set = open.filter(function(o){return o.stage===s;});
+    return {
+      stage: s,
+      count: set.length,
+      medianAge: pct(set.map(function(o){return o.age;}),50),
+      pastSla: set.filter(function(o){return o.pastSla;}).length
+    };
+  });
+
+  // weekly trend, last 13 completed weeks
+  var byWeek = {};
+  completed.forEach(function(o){
+    var k = weekKey(o.closed);
+    (byWeek[k] = byWeek[k] || []).push(o);
+  });
+  var keys = Object.keys(byWeek).map(Number).sort(function(a,b){return a-b;});
+  keys = keys.slice(-14, -1);
+  var weekly = keys.map(function(k){
+    var set = byWeek[k], tats = set.map(function(o){return o.tat;});
+    return {
+      label: fmtWeek(k), p50: pct(tats,50), p90: pct(tats,90),
+      n: set.length,
+      sla: set.filter(function(o){return o.slaMet;}).length / set.length
+    };
+  });
+
+  // by client
+  var cmap = {};
+  completed.forEach(function(o){
+    var c = cmap[o.client] = cmap[o.client] || {client:o.client, seg:o.seg, sla:o.sla, n:0, met:0, tats:[]};
+    c.n++; if(o.slaMet) c.met++; c.tats.push(o.tat);
+  });
+  var byClient = Object.keys(cmap).map(function(k){
+    var c = cmap[k];
+    return {client:c.client, seg:c.seg, target:c.sla, volume:c.n,
+            slaPct:c.met/c.n, p50:pct(c.tats,50), p90:pct(c.tats,90)};
+  }).sort(function(a,b){return a.slaPct-b.slaPct;});
+
+  // custodians
+  var umap = {};
+  f.forEach(function(o){
+    var u = umap[o.custodian] = umap[o.custodian] ||
+      {name:o.custodian, group:o.custGroup, n:0, tats:[], aged:0, pastStat:0, openN:0};
+    u.n++;
+    if(o.tat!=null) u.tats.push(o.tat);
+    if(o.status==='Open'){ u.openN++; if(o.age>30) u.aged++; if(o.pastStatutory) u.pastStat++; }
+  });
+  var totalAged = open.filter(function(o){return o.age>30;}).length || 1;
+  var custodians = Object.keys(umap).map(function(k){
+    var u = umap[k];
+    return {name:u.name, group:u.group, requests:u.n, p50:pct(u.tats,50), p90:pct(u.tats,90),
+            openN:u.openN, aged:u.aged, agedShare:u.aged/totalAged,
+            pastStatPct: u.openN ? u.pastStat/u.openN : 0};
+  }).sort(function(a,b){return b.agedShare-a.agedShare;});
+
+  // custodian groups
+  var gmap = {};
+  f.forEach(function(o){
+    var g = gmap[o.custGroup] = gmap[o.custGroup] || {group:o.custGroup, n:0, tats:[], recentTats:[], oldTats:[]};
+    g.n++;
+    if(o.tat!=null){
+      g.tats.push(o.tat);
+      if(o.closed>=AS_OF-42*DAY) g.recentTats.push(o.tat); else if(o.closed) g.oldTats.push(o.tat);
+    }
+  });
+  var byGroup = Object.keys(gmap).map(function(k){
+    var g = gmap[k];
+    return {group:g.group, n:g.n, p50:pct(g.tats,50), p90:pct(g.tats,90),
+            p90Recent:pct(g.recentTats,90), p90Old:pct(g.oldTats,90)};
+  }).sort(function(a,b){return b.p90-a.p90;});
+
+  // defects
+  var dmap = {};
+  f.filter(function(o){return o.defect && (o.closed||o.opened)>=AS_OF-56*DAY;})
+   .forEach(function(o){ dmap[o.defect] = (dmap[o.defect]||0)+1; });
+  var defTotal = Object.keys(dmap).reduce(function(s,k){return s+dmap[k];},0) || 1;
+  var run = 0;
+  var defects = Object.keys(dmap).map(function(k){return {reason:k, count:dmap[k]};})
+    .sort(function(a,b){return b.count-a.count;})
+    .map(function(d){ run += d.count; return {reason:d.reason, count:d.count, share:d.count/defTotal, cum:run/defTotal}; });
+
+  // aging buckets by stage
+  var buckets = [{label:'0–14 days',lo:0,hi:14},{label:'15–30 days',lo:15,hi:30},
+                 {label:'31–60 days',lo:31,hi:60},{label:'61+ days',lo:61,hi:1e9}];
+  var aging = buckets.map(function(b){
+    var set = open.filter(function(o){return o.age>=b.lo && o.age<=b.hi;});
+    return {label:b.label, count:set.length,
+            byStage: STAGES.map(function(s){return set.filter(function(o){return o.stage===s;}).length;})};
+  });
+
+  // exposure: value sitting in aged backlog
+  var agedValue = open.filter(function(o){return o.age>30;})
+    .reduce(function(s,o){return s + o.serviceFee;},0);
+
+  return {
+    open: open, filteredCount: f.length,
+    kpi: {
+      p50: cur.p50, p50Δ: cur.p50-pre.p50,
+      p90: cur.p90, p90Δ: cur.p90-pre.p90,
+      sla: cur.sla, slaΔ: cur.sla-pre.sla,
+      fpy: fpy, fpyΔ: fpy-fpyPrior,
+      cost: costPer,
+      noRec: noRec,
+      completedRecent: cur.n,
+      openCount: open.length,
+      openPastSla: open.filter(function(o){return o.pastSla;}).length,
+      agedValue: agedValue
+    },
+    stages: stages, weekly: weekly, byClient: byClient,
+    custodians: custodians, byGroup: byGroup, defects: defects, aging: aging
+  };
+}
+
+</script>
+<script>
+/* ============================================================
+   Rendering layer. Everything is drawn from the aggregate()
+   output so the filters re-cut the real analysis.
+   ============================================================ */
+var ORDERS = buildOrders();
+var STATE = {seg:'All', rt:'All'};
+var A = null;
+
+var C = {slate:'#43566B',amber:'#DDA13A',indigo:'#7189CE',sage:'#4F9B7C',stamp:'#D2564B',
+         rule:'#24313F',rule2:'#1B2531',muted:'#8B97A6',bone:'#E8E6DF',paper:'#C7C1B3',dim:'#5C6979'};
+var STAGE_C = {'Intake':C.slate,'Authorization':C.amber,'Request served':'#5B7FB9',
+               'In follow-up':C.indigo,'Records in / QC':C.sage};
+
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function n0(x){return Math.round(x).toLocaleString('en-US');}
+function n1(x){return x.toFixed(1);}
+function pc(x,d){return (x*100).toFixed(d==null?1:d)+'%';}
+function money(x){return '$'+x.toFixed(0);}
+function svg(w,h,inner,extra){
+  return '<svg viewBox="0 0 '+w+' '+h+'" width="100%" role="img" '+
+         'style="display:block;overflow:visible" '+(extra||'')+'>'+inner+'</svg>';
+}
+function txt(x,y,s,o){
+  o=o||{};
+  return '<text x="'+x+'" y="'+y+'" fill="'+(o.fill||C.muted)+'" font-size="'+(o.size||11)+'" '+
+    'text-anchor="'+(o.anchor||'start')+'" font-family="'+(o.serif?'Georgia,serif':'Inter,system-ui,sans-serif')+'" '+
+    (o.weight?'font-weight="'+o.weight+'" ':'')+'style="font-variant-numeric:tabular-nums">'+s+'</text>';
+}
+function rect(x,y,w,h,f,o){
+  o=o||{};
+  return '<rect x="'+x+'" y="'+y+'" width="'+Math.max(0,w)+'" height="'+Math.max(0,h)+'" fill="'+f+'"'+
+    (o.rx?' rx="'+o.rx+'"':'')+(o.op?' opacity="'+o.op+'"':'')+'/>';
+}
+
+/* ---------------- filters ---------------- */
+function initFilters(){
+  var segs = ['All'].concat(CLIENTS.map(function(c){return c.seg;})
+    .filter(function(v,i,a){return a.indexOf(v)===i;}));
+  document.getElementById('fSeg').innerHTML = segs.map(function(s){
+    return '<option value="'+s+'">'+(s==='All'?'All client segments':s)+'</option>';}).join('');
+  var rts = ['All'].concat(RECORD_TYPES.map(function(r){return r.name;}));
+  document.getElementById('fRt').innerHTML = rts.map(function(s){
+    return '<option value="'+s+'">'+(s==='All'?'All record types':s)+'</option>';}).join('');
+  document.getElementById('fSeg').onchange = function(){STATE.seg=this.value; render();};
+  document.getElementById('fRt').onchange  = function(){STATE.rt =this.value; render();};
+}
+
+/* ---------------- readout ---------------- */
+function renderReadout(){
+  var k = A.kpi;
+  var worst = A.byClient[0];
+  var g = A.byGroup[0];
+  var volShare = g.n / A.filteredCount;
+  var agedByGroup = {};
+  A.open.filter(function(o){return o.age>30;}).forEach(function(o){
+    agedByGroup[o.custGroup]=(agedByGroup[o.custGroup]||0)+1;});
+  var agedTot = Object.keys(agedByGroup).reduce(function(s,x){return s+agedByGroup[x];},0)||1;
+  var agedShare = (agedByGroup[g.group]||0)/agedTot;
+  var top2 = A.defects.slice(0,2);
+  var authShare = top2.reduce(function(s,d){return s+d.share;},0);
+
+  var dir = k.p90Δ > 0 ? 'lengthened' : k.p90Δ < 0 ? 'shortened' : 'held';
+  var thin = k.completedRecent < 40;
+  var lead = thin
+    ? '<p>This slice delivered only '+n0(k.completedRecent)+' request'+(k.completedRecent===1?'':'s')+
+      ' in the last four weeks. At that volume a single stalled custodian moves the percentiles by days, '+
+      'so read <em>'+k.p50+'-day median</em> and '+k.p90+'-day p90 as indicative and widen the filter '+
+      'before drawing a conclusion.</p>'
+    : '<p>In this simulated book of work, half of all requests close in about '+k.p50+' days. '+
+      'The slowest tenth '+dir+' to <em>'+k.p90+' days</em>, and '+pc(1-k.sla,0)+
+      ' of deliveries land outside the client&rsquo;s window.</p>';
+  var sub = thin
+    ? '<p class="sub">'+n0(A.filteredCount)+' requests match this filter across the full six months, '+
+      'with '+n0(A.open.length)+' still open. The driver panels below are drawn from the same small '+
+      'sample and carry the same caveat.</p>'
+    : '<p class="sub">'+g.group+' custodians are '+pc(volShare,0)+' of request volume but '+pc(agedShare,0)+
+      ' of everything sitting past 30 days. Separately, '+pc(authShare,0)+' of re-work traces to just two '+
+      'authorization defects &mdash; both of them checks that could run against the authorization at intake '+
+      'rather than after the request reaches the custodian. '+
+      (k.openPastSla===0 ? 'No open requests are'
+        : n0(k.openPastSla)+' open request'+(k.openPastSla===1?' is':'s are'))+
+      ' past the contracted date today.</p>';
+  document.getElementById('readout').innerHTML = lead + sub;
+}
+
+/* ---------------- hero strip ---------------- */
+function renderStrip(){
+  var W=1180,GUT=126,PAD=26,X0=GUT,X1=W-PAD,MAXD=92,LH=30;
+  var lanes = STAGES;
+  var H = lanes.length*LH + 44;
+  var sx = function(d){return X0 + Math.min(d,MAXD)/MAXD*(X1-X0);};
+  var s='';
+
+  // past-30-day field
+  s += rect(sx(30),8,X1-sx(30),lanes.length*LH,'#D2564B',{op:.055});
+  [0,15,30,45,60,75,90].forEach(function(d){
+    s += '<line x1="'+sx(d)+'" y1="8" x2="'+sx(d)+'" y2="'+(lanes.length*LH+8)+'" stroke="'+
+         (d===30?'#D2564B':C.rule2)+'" stroke-width="1"'+(d===30?' stroke-dasharray="3 3" opacity=".6"':'')+'/>';
+    s += txt(sx(d), lanes.length*LH+26, d===90?'90+':String(d), {anchor:'middle',size:10.5,fill:C.dim});
+  });
+  s += txt(X0, lanes.length*LH+41, 'days since the request was opened', {size:10.5,fill:C.dim});
+  s += txt(sx(30)+6, 20, 'past 30 days', {size:10,fill:'#A5564E'});
+
+  var byStage={};
+  A.open.forEach(function(o){(byStage[o.stage]=byStage[o.stage]||[]).push(o);});
+
+  lanes.forEach(function(st,li){
+    var y0 = 8 + li*LH;
+    var set = byStage[st]||[];
+    s += '<line x1="'+X0+'" y1="'+(y0+LH)+'" x2="'+X1+'" y2="'+(y0+LH)+'" stroke="'+C.rule2+'"/>';
+    s += rect(X0-8,y0+3,3,LH-8,STAGE_C[st],{rx:1});
+    s += txt(0, y0+14, st, {size:11.5,fill:C.paper});
+    s += txt(0, y0+26, n0(set.length)+' open', {size:10.5,fill:C.dim});
+    set.forEach(function(o,i){
+      var jit = ((i*2654435761)%1000)/1000;
+      var y = y0 + 5 + jit*(LH-14);
+      s += '<rect x="'+(sx(o.age)-1)+'" y="'+y.toFixed(1)+'" width="2" height="9" fill="'+
+           (o.pastSla?C.stamp:C.indigo)+'" opacity="'+(o.pastSla?.92:.6)+'"/>';
+    });
+  });
+
+  // hover columns
+  var counts={};
+  A.open.forEach(function(o){var d=Math.min(o.age,MAXD); counts[d]=(counts[d]||0)+1;});
+  for(var d=0; d<=MAXD; d+=2){
+    var c=(counts[d]||0)+(counts[d+1]||0);
+    var late=A.open.filter(function(o){var a=Math.min(o.age,MAXD); return (a===d||a===d+1)&&o.pastSla;}).length;
+    s += '<rect x="'+sx(d)+'" y="8" width="'+((X1-X0)/MAXD*2)+'" height="'+(lanes.length*LH)+
+         '" fill="transparent" data-d="'+d+'" data-c="'+c+'" data-l="'+late+'"/>';
+  }
+
+  document.getElementById('strip').innerHTML = svg(W,H,s,'id="stripSvg"');
+  document.getElementById('heroTitle').textContent =
+    'The open backlog \u2014 ' + n0(A.open.length) + ' requests, one mark each';
+  document.getElementById('heroLegend').innerHTML =
+    '<span><i style="background:'+C.indigo+'"></i>Inside its window</span>'+
+    '<span><i style="background:'+C.stamp+'"></i>Past its window</span>';
+
+  var tip = document.getElementById('stripTip');
+  var sv = document.getElementById('stripSvg');
+  sv.addEventListener('mousemove', function(e){
+    var t = e.target;
+    if(t.dataset && t.dataset.d!==undefined){
+      var d=+t.dataset.d, c=+t.dataset.c, l=+t.dataset.l;
+      tip.textContent = c===0 ? 'Day '+d+'\u2013'+(d+1)+': nothing open at this age.'
+        : 'Day '+d+'\u2013'+(d+1)+': '+c+' open request'+(c===1?'':'s')+
+          (l? ', '+l+' already past the contracted date.' : ', all still inside window.');
+    }
+  });
+  sv.addEventListener('mouseleave', function(){
+    tip.textContent='Point at the chart to read a single day.';});
+}
+
+/* ---------------- KPIs ---------------- */
+var METRICS = [
+  {id:'p50', lab:'Median turnaround, delivered',
+   val:function(k){return k.p50+'<small> days</small>';},
+   d:function(k){return k.p50Δ;}, unit:'d', good:'down'},
+  {id:'p90', lab:'90th percentile turnaround',
+   val:function(k){return k.p90+'<small> days</small>';},
+   d:function(k){return k.p90Δ;}, unit:'d', good:'down'},
+  {id:'sla', lab:'Delivered inside contracted window',
+   val:function(k){return pc(k.sla,1);},
+   d:function(k){return k.slaΔ*100;}, unit:'pp', good:'up'},
+  {id:'fpy', lab:'Clean first pass, no re-work',
+   val:function(k){return pc(k.fpy,1);},
+   d:function(k){return k.fpyΔ*100;}, unit:'pp', good:'up'},
+  {id:'aged', lab:'Open past the contracted date',
+   val:function(k){return n0(k.openPastSla);},
+   d:function(){return null;}, sub:function(k){return pc(k.openPastSla/Math.max(1,k.openCount),0)+' of open work';}},
+  {id:'cost', lab:'Fulfilment cost per delivery',
+   val:function(k){return money(k.cost);},
+   d:function(){return null;}, sub:function(){return 'custodian fee plus handling';}}
+];
+
+function renderKpis(){
+  var k=A.kpi;
+  document.getElementById('kpis').innerHTML = METRICS.map(function(m){
+    var delta = m.d(k), dh='';
+    if(delta===null){ dh = '<div class="delta">'+m.sub(k)+'</div>'; }
+    else if(k.completedRecent < 40){
+      dh = '<div class="delta">'+n0(k.completedRecent)+' deliveries \u2014 too few to compare</div>'; }
+    else {
+      var better = (m.good==='down') ? delta<0 : delta>0;
+      var cls = Math.abs(delta)<0.35 ? 'flat' : (better?'down':'up');
+      var sign = delta>0?'+':'';
+      dh = '<div class="delta"><b class="'+cls+'">'+sign+(m.unit==='pp'?n1(delta):delta)+' '+m.unit+
+           '</b> vs prior 4 weeks</div>';
+    }
+    return '<button class="kpi" data-m="'+m.id+'"><span class="def">def</span>'+
+      '<div class="lab">'+m.lab+'</div><div class="val num">'+m.val(k)+'</div>'+dh+'</button>';
+  }).join('');
+  Array.prototype.forEach.call(document.querySelectorAll('.kpi'), function(b){
+    b.onclick = function(){ openDrawer(b.dataset.m); };
+  });
+}
+
+/* ---------------- trend ---------------- */
+function renderTrend(){
+  var w=640,h=270,L=38,R=44,T=18,B=38;
+  var d=A.weekly, mx=Math.max(50, Math.ceil(Math.max.apply(null,d.map(function(x){return x.p90;}))/10)*10+5);
+  var sx=function(i){return L+i/(d.length-1)*(w-L-R);};
+  var sy=function(v){return T+(1-v/mx)*(h-T-B);};
+  var s='';
+  [0,10,20,30,40,50].filter(function(v){return v<=mx;}).forEach(function(v){
+    s+='<line x1="'+L+'" y1="'+sy(v)+'" x2="'+(w-R)+'" y2="'+sy(v)+'" stroke="'+C.rule2+'"/>';
+    s+=txt(L-7,sy(v)+3.5,String(v),{anchor:'end',size:10.5,fill:C.dim});
+  });
+  s+='<line x1="'+L+'" y1="'+sy(30)+'" x2="'+(w-R)+'" y2="'+sy(30)+'" stroke="'+C.stamp+
+     '" stroke-dasharray="4 3" opacity=".5"/>';
+  s+=txt(w-R+4, sy(30)+3.5, '30d', {size:10,fill:'#A5564E'});
+
+  function line(key,col,wd){
+    var p=d.map(function(x,i){return (i?'L':'M')+sx(i).toFixed(1)+' '+sy(x[key]).toFixed(1);}).join(' ');
+    return '<path d="'+p+'" fill="none" stroke="'+col+'" stroke-width="'+wd+'" stroke-linejoin="round"/>';
+  }
+  s+=line('p90',C.amber,2);
+  s+=line('p50',C.indigo,2);
+  d.forEach(function(x,i){
+    if(i%2===0) s+=txt(sx(i), h-B+16, x.label, {anchor:'middle',size:10,fill:C.dim});
+  });
+  var last=d[d.length-1];
+  s+='<circle cx="'+sx(d.length-1)+'" cy="'+sy(last.p90)+'" r="3" fill="'+C.amber+'"/>';
+  s+='<circle cx="'+sx(d.length-1)+'" cy="'+sy(last.p50)+'" r="3" fill="'+C.indigo+'"/>';
+  s+=txt(sx(d.length-1)+7, sy(last.p90)+3.5, 'p90', {fill:C.amber,size:11});
+  s+=txt(sx(d.length-1)+7, sy(last.p50)+3.5, 'p50', {fill:C.indigo,size:11});
+  s+=txt(L, h-2, 'week ending \u00b7 delivered requests only', {size:10.5,fill:C.dim});
+  document.getElementById('trend').innerHTML = svg(w,h,s);
+}
+
+/* ---------------- clients ---------------- */
+function renderClients(){
+  var d=A.byClient, w=430, rowH=27, h=d.length*rowH+22;
+  var L=168, R=44;
+  var s='';
+  [0,.25,.5,.75,1].forEach(function(v){
+    var x=L+v*(w-L-R);
+    s+='<line x1="'+x+'" y1="0" x2="'+x+'" y2="'+(d.length*rowH)+'" stroke="'+C.rule2+'"/>';
+    s+=txt(x, d.length*rowH+15, Math.round(v*100)+'%', {anchor:'middle',size:10,fill:C.dim});
+  });
+  var x90=L+0.9*(w-L-R);
+  s+='<line x1="'+x90+'" y1="0" x2="'+x90+'" y2="'+(d.length*rowH)+'" stroke="'+C.sage+
+     '" stroke-dasharray="3 3" opacity=".55"/>';
+  d.forEach(function(c,i){
+    var y=i*rowH+7, bw=c.slaPct*(w-L-R);
+    var col = c.slaPct<0.72 ? C.stamp : c.slaPct<0.85 ? C.amber : C.sage;
+    s+=txt(0, y+11, c.client.length>24?c.client.slice(0,23)+'\u2026':c.client, {size:11.5,fill:C.paper});
+    s+=txt(L-8, y+11, c.target+'d', {anchor:'end',size:10.5,fill:C.dim});
+    s+=rect(L,y+3,w-L-R,12,C.rule2,{rx:1});
+    s+=rect(L,y+3,bw,12,col,{rx:1});
+    s+=txt(w-R+6, y+12, pc(c.slaPct,0), {size:11,fill:C.paper});
+  });
+  s+=txt(0, d.length*rowH+15, 'target', {size:10,fill:C.dim});
+  document.getElementById('clients').innerHTML = svg(w,h,s);
+}
+
+/* ---------------- custodian groups ---------------- */
+function renderGroups(){
+  var agedTot=0, aged={}, vol={};
+  A.open.filter(function(o){return o.age>30;}).forEach(function(o){
+    aged[o.custGroup]=(aged[o.custGroup]||0)+1; agedTot++;});
+  A.byGroup.forEach(function(g){vol[g.group]=g.n;});
+  var tot=A.filteredCount||1;
+  var rows=A.byGroup.map(function(g){
+    return {group:g.group, vol:g.n/tot, aged:(aged[g.group]||0)/(agedTot||1), p90:g.p90,
+            recent:g.p90Recent, old:g.p90Old};
+  }).sort(function(a,b){return b.aged-a.aged;});
+
+  var w=520, rowH=38, h=rows.length*rowH+26, L=136, R=76;
+  var mx=Math.max.apply(null, rows.map(function(r){return Math.max(r.vol,r.aged);}))*1.08 || 1;
+  var s='';
+  rows.forEach(function(r,i){
+    var y=i*rowH+4;
+    s+=txt(0,y+13,r.group,{size:11.5,fill:C.paper});
+    s+=rect(L,y+2,(r.vol/mx)*(w-L-R),9,C.slate,{rx:1});
+    s+=rect(L,y+15,(r.aged/mx)*(w-L-R),9, r.aged>r.vol*1.35?C.stamp:C.indigo,{rx:1});
+    s+=txt(L+(r.vol/mx)*(w-L-R)+6, y+10, pc(r.vol,0),{size:10.5,fill:C.dim});
+    s+=txt(L+(r.aged/mx)*(w-L-R)+6, y+23, pc(r.aged,0),{size:10.5,
+        fill:r.aged>r.vol*1.35?'#C46B63':C.dim});
+    s+=txt(w-2,y+18, 'p90 '+r.p90+'d',{anchor:'end',size:10.5,fill:C.dim});
+  });
+  s+=rect(0,h-14,9,9,C.slate,{rx:1});
+  s+=txt(14,h-6,'share of all requests',{size:10.5,fill:C.dim});
+  s+=rect(164,h-14,9,9,C.indigo,{rx:1});
+  s+=txt(178,h-6,'share of backlog older than 30 days',{size:10.5,fill:C.dim});
+  document.getElementById('groups').innerHTML = svg(w,h,s);
+}
+
+/* ---------------- defects ---------------- */
+function renderDefects(){
+  var d=A.defects, w=520, rowH=34, h=d.length*rowH+18, L=0, BW=w-92;
+  var mx=d.length?d[0].count:1;
+  var s='';
+  d.forEach(function(x,i){
+    var y=i*rowH;
+    s+=txt(0,y+12,x.reason,{size:11.5,fill:C.paper});
+    s+=rect(0,y+18,(x.count/mx)*BW,8, i<2?C.amber:C.slate,{rx:1});
+    s+=txt(w,y+12, n0(x.count),{anchor:'end',size:11.5,fill:C.bone});
+    s+=txt(w,y+25, pc(x.cum,0)+' cumulative',{anchor:'end',size:10,fill:C.dim});
+  });
+  var tot=d.reduce(function(a,b){return a+b.count;},0);
+  s+=txt(0,h-2, n0(tot)+' defective requests in the last eight weeks',{size:10.5,fill:C.dim});
+  document.getElementById('defects').innerHTML = svg(w,h,s);
+}
+
+/* ---------------- aging ---------------- */
+function renderAging(){
+  var d=A.aging, w=360, rowH=44, h=d.length*rowH+30, L=0, BW=w-46;
+  var mx=Math.max.apply(null,d.map(function(b){return b.count;}))||1;
+  var s='';
+  d.forEach(function(b,i){
+    var y=i*rowH, x=0;
+    s+=txt(0,y+12,b.label,{size:11.5,fill:C.paper});
+    s+=txt(w,y+12,n0(b.count),{anchor:'end',size:11.5,fill:C.bone});
+    var full=(b.count/mx)*BW;
+    STAGES.forEach(function(st,j){
+      var seg = b.count? (b.byStage[j]/b.count)*full : 0;
+      if(seg>0){ s+=rect(x,y+18,seg,10,STAGE_C[st],{rx:0}); x+=seg; }
+    });
+    if(b.count===0) s+=rect(0,y+18,BW,10,C.rule2,{rx:1});
+  });
+  var lx=0, ly=h-12;
+  STAGES.forEach(function(st){
+    s+=rect(lx,ly-8,8,8,STAGE_C[st],{rx:1});
+    s+=txt(lx+11,ly, st,{size:9.5,fill:C.dim});
+    lx += st.length*4.9 + 24;
+  });
+  document.getElementById('aging').innerHTML = svg(w,h,s);
+}
+
+/* ---------------- custodians ---------------- */
+function renderCustodians(){
+  var d=A.custodians.filter(function(c){return c.openN>0;}).slice(0,8);
+  var rows=d.map(function(c){
+    var col = c.pastStatPct>0.3?'var(--stamp)':c.pastStatPct>0.15?'var(--amber)':'var(--paper)';
+    return '<tr><td><b>'+esc(c.name)+'</b><div style="color:var(--dim);font-size:11px">'+
+      esc(c.group)+'</div></td>'+
+      '<td class="n">'+n0(c.openN)+'</td>'+
+      '<td class="n">'+n0(c.aged)+'</td>'+
+      '<td class="n">'+pc(c.agedShare,0)+
+        '<div class="barwrap"><span class="bar" style="width:'+
+        Math.min(100,c.agedShare*100*2.4)+'%;background:'+(c.agedShare>0.12?'var(--stamp)':'var(--indigo)')+
+        '"></span></div></td>'+
+      '<td class="n" style="color:'+col+'">'+pc(c.pastStatPct,0)+'</td>'+
+      '<td class="n">'+c.p90+'d</td></tr>';
+  }).join('');
+  document.getElementById('custodians').innerHTML =
+    '<table><thead><tr><th>Custodian</th><th class="n">Open</th><th class="n">Past&nbsp;30d</th>'+
+    '<th class="n">Share of aged</th><th class="n">Past statutory</th><th class="n">p90</th></tr></thead>'+
+    '<tbody>'+rows+'</tbody></table>';
+}
+
+/* ---------------- trust ---------------- */
+function renderTrust(){
+  var evRows = ORDERS.length*4 + Math.round(ORDERS.length*0.31);
+  var cancelled = ORDERS.filter(function(o){return o.status==='Cancelled';}).length;
+  var noRec = ORDERS.filter(function(o){return o.status==='No records';}).length;
+  var cards = [
+    {t:'ok', src:'FCT_REQUEST', meta:n0(ORDERS.length)+' rows &middot; one row per retrieval request<br>'+
+      'Loaded 04:12 ET, inside the 05:00 window &middot; 0 duplicate request keys'},
+    {t:'ok', src:'FCT_REQUEST_EVENT', meta:n0(evRows)+' stage transitions &middot; drives every age and '+
+      'duration on this page<br>0 requests missing an intake timestamp'},
+    {t:'warn', src:'Right-censoring in the percentiles', meta:'Turnaround percentiles use delivered '+
+      'requests only. '+n0(A.open.length)+' open requests are excluded, and the slowest of them have not '+
+      'landed yet &mdash; so the reported p90 understates true cycle time while the backlog grows.'},
+    {t:'warn', src:'Exclusions applied', meta:n0(cancelled)+' client-cancelled and '+n0(noRec)+
+      ' no-responsive-records requests are held out of turnaround and window compliance. They are '+
+      'counted in volume and in cost. Changing this rule moves compliance by roughly a point.'}
+  ];
+  document.getElementById('trust').innerHTML = cards.map(function(c){
+    return '<div class="tcard'+(c.t==='warn'?' warn':'')+'"><div class="src">'+c.src+
+      '</div><div class="meta">'+c.meta+'</div></div>';}).join('');
+}
+
+/* ---------------- definitions drawer ---------------- */
+function sqlfmt(q){
+  var s = esc(q);
+  s = s.replace(/(--[^\n]*)/g, '<span class="c">$1</span>');
+  s = s.replace(/\b(select|from|join|left join|on|where|and|or|group by|order by|qualify|case|when|then|else|end|as|with|not|in|between|having|over|partition by|is|null|distinct)\b/gi,
+    function(m){return '<span class="k">'+m+'</span>';});
+  s = s.replace(/\b(count|sum|avg|approx_percentile|median|date_trunc|dateadd|datediff|coalesce|iff|round|div0)\b/gi,
+    function(m){return '<span class="f">'+m+'</span>';});
+  s = s.replace(/('[^']*')/g, '<span class="s">$1</span>');
+  return s;
+}
+
+var DEFS = {
+  p50:{
+    title:'Median turnaround, delivered',
+    plain:'The middle request. Half of everything delivered in the period closed faster than this, half slower. Reported instead of an average because a handful of stalled requests drags a mean upward and makes a stable operation look like a deteriorating one.',
+    grain:'One row per delivered request', owner:'BI \u00b7 Records Retrieval',
+    refresh:'Daily, 05:00 ET', window:'Rolling 4 weeks by delivery date',
+    excl:'Cancelled requests, no-responsive-records outcomes, internal test requests, and requests still open',
+    sql:"-- certified: turnaround_p50_days\nselect\n    date_trunc('week', r.delivered_at)             as delivery_week,\n    median(r.turnaround_days)                      as turnaround_p50_days,\n    approx_percentile(r.turnaround_days, 0.90)     as turnaround_p90_days,\n    count(*)                                       as requests_delivered\nfrom analytics.records_retrieval.fct_request r\nwhere r.request_status = 'DELIVERED'\n  and r.is_test_request = false\n  and r.delivered_at >= dateadd('week', -13, date_trunc('week', current_date()))\ngroup by 1\norder by 1"
+  },
+  p90:{
+    title:'90th percentile turnaround',
+    plain:'Nine of every ten delivered requests closed at or under this many days. This is the number a client actually feels, because the escalation calls come from the slow tail rather than from the middle of the distribution.',
+    grain:'One row per delivered request', owner:'BI \u00b7 Records Retrieval',
+    refresh:'Daily, 05:00 ET', window:'Rolling 4 weeks by delivery date',
+    excl:'Same exclusion set as the median, so the two are always comparable',
+    sql:"-- certified: turnaround_p90_days\n-- decomposition by custodian group, which is where the tail lives\nselect\n    c.custodian_group,\n    count(*)                                    as requests_delivered,\n    approx_percentile(r.turnaround_days, 0.90)  as p90_days,\n    approx_percentile(r.turnaround_days, 0.50)  as p50_days\nfrom analytics.records_retrieval.fct_request r\njoin analytics.records_retrieval.dim_custodian c\n  on c.custodian_key = r.custodian_key\nwhere r.request_status = 'DELIVERED'\n  and r.is_test_request = false\n  and r.delivered_at >= dateadd('day', -42, current_date())\ngroup by 1\norder by p90_days desc"
+  },
+  sla:{
+    title:'Delivered inside contracted window',
+    plain:'The share of delivered requests that reached the client on or before the delivery date their own contract promises. Targets differ by client, so this is measured against each contract rather than one house standard.',
+    grain:'One row per delivered request', owner:'BI with Client Services',
+    refresh:'Daily, 05:00 ET', window:'Rolling 4 weeks by delivery date',
+    excl:'Cancellations, no-responsive-records outcomes, and any client without a current contracted term on file',
+    sql:"-- certified: window_compliance_rate\nselect\n    cl.client_name,\n    ct.contracted_days,\n    count(*)                                              as delivered,\n    sum(iff(r.turnaround_days <= ct.contracted_days,1,0)) as inside_window,\n    div0(sum(iff(r.turnaround_days <= ct.contracted_days,1,0)),\n         count(*))                                        as window_compliance_rate\nfrom analytics.records_retrieval.fct_request r\njoin analytics.records_retrieval.dim_client        cl on cl.client_key = r.client_key\njoin analytics.records_retrieval.dim_client_terms  ct on ct.client_key = r.client_key\n                                                     and r.delivered_at between ct.valid_from and ct.valid_to\nwhere r.request_status = 'DELIVERED'\n  and r.is_test_request = false\ngroup by 1,2\norder by window_compliance_rate asc"
+  },
+  fpy:{
+    title:'Clean first pass, no re-work',
+    plain:'The share of requests that moved from intake to delivery without ever being sent back. A request fails this test if an authorization or routing defect was raised against it at any point, even if it was fixed the same day.',
+    grain:'One row per request touched in the period', owner:'BI with Operations',
+    refresh:'Daily, 05:00 ET', window:'Rolling 4 weeks',
+    excl:'Internal test requests. Defects raised and withdrawn within the same hour are treated as data entry noise and ignored.',
+    sql:"-- certified: first_pass_yield\nwith defective as (\n    select distinct request_key, defect_reason\n    from analytics.records_retrieval.fct_request_defect\n    where raised_at >= dateadd('day', -28, current_date())\n      and datediff('minute', raised_at, coalesce(withdrawn_at, raised_at)) <> 0\n         or withdrawn_at is null\n)\nselect\n    d.defect_reason,\n    count(*)                                       as defects,\n    div0(count(*), (select count(*) from defective)) as share_of_defects\nfrom defective d\ngroup by 1\norder by defects desc"
+  },
+  aged:{
+    title:'Open past the contracted date',
+    plain:'Live requests whose contracted delivery date has already passed. Unlike the compliance rate, which can only be measured after a request closes, this is the exposure sitting in the queue right now and the number worth working from on a Monday morning.',
+    grain:'One row per open request, measured at load time', owner:'BI \u00b7 Records Retrieval',
+    refresh:'Daily, 05:00 ET', window:'Point in time',
+    excl:'Requests on a documented client hold',
+    sql:"-- operational: open_past_contracted_date\nselect\n    r.current_stage,\n    c.custodian_group,\n    count(*)                                              as open_requests,\n    sum(iff(datediff('day', r.opened_at, current_date())\n            > ct.contracted_days, 1, 0))                  as past_contracted_date,\n    median(datediff('day', r.opened_at, current_date()))  as median_age_days\nfrom analytics.records_retrieval.fct_request r\njoin analytics.records_retrieval.dim_custodian     c  on c.custodian_key = r.custodian_key\njoin analytics.records_retrieval.dim_client_terms  ct on ct.client_key = r.client_key\n                                                     and ct.is_current = true\nwhere r.request_status = 'OPEN'\n  and r.client_hold_flag = false\ngroup by 1,2\norder by past_contracted_date desc"
+  },
+  cost:{
+    title:'Fulfilment cost per delivery',
+    plain:'What it costs to close one request: the custodian fee passed through, plus a standard handling charge for every follow-up touch the request needed. It is a cost figure, not a margin figure, and it deliberately excludes fixed overhead so that the effect of extra follow-up is visible on its own.',
+    grain:'One row per delivered request', owner:'BI with Finance',
+    refresh:'Daily, 05:00 ET \u00b7 handling rate reviewed quarterly',
+    window:'Rolling 4 weeks by delivery date',
+    excl:'Statutory fee waivers and requests where the custodian invoice has not yet posted',
+    sql:"-- certified: fulfilment_cost_per_delivery\nselect\n    c.custodian_group,\n    count(*)                                        as deliveries,\n    avg(r.custodian_fee_usd)                        as avg_custodian_fee,\n    avg(r.follow_up_touch_count)                    as avg_touches,\n    avg(r.custodian_fee_usd\n        + r.follow_up_touch_count * h.handling_rate_usd) as cost_per_delivery\nfrom analytics.records_retrieval.fct_request r\njoin analytics.records_retrieval.dim_custodian c on c.custodian_key = r.custodian_key\njoin analytics.records_retrieval.ref_handling_rate h on h.effective_year = year(r.delivered_at)\nwhere r.request_status = 'DELIVERED'\n  and r.custodian_invoice_posted = true\ngroup by 1\norder by cost_per_delivery desc"
+  }
+};
+
+function openDrawer(id){
+  var d = DEFS[id];
+  var body;
+  if(!d){
+    body = '<h3>Certified metric definitions</h3><p class="plain">Six headline metrics, one owner each, '+
+      'versioned in the semantic model rather than re-derived inside individual workbooks. Open any tile '+
+      'on the page to read its definition, its exclusions, and the query behind it.</p>'+
+      '<div style="display:grid;gap:8px">'+ METRICS.map(function(m){
+        return '<button class="kpi" data-m="'+m.id+'" style="padding:11px 13px"><div class="lab" '+
+          'style="min-height:0;color:var(--bone);font-size:13px">'+DEFS[m.id].title+'</div>'+
+          '<div class="delta" style="margin-top:4px">'+DEFS[m.id].owner+' \u00b7 '+DEFS[m.id].refresh+
+          '</div></button>';}).join('') +'</div>';
+  } else {
+    body = '<h3 id="drawerTitle">'+d.title+'</h3><p class="plain">'+d.plain+'</p>'+
+      '<dl class="dl">'+
+      '<dt>Grain</dt><dd>'+d.grain+'</dd>'+
+      '<dt>Owner</dt><dd>'+d.owner+'</dd>'+
+      '<dt>Refresh</dt><dd>'+d.refresh+'</dd>'+
+      '<dt>Window</dt><dd>'+d.window+'</dd>'+
+      '<dt>Excluded</dt><dd>'+d.excl+'</dd></dl>'+
+      '<pre>'+sqlfmt(d.sql)+'</pre>';
+  }
+  document.getElementById('drawerBody').innerHTML = body;
+  Array.prototype.forEach.call(document.querySelectorAll('#drawerBody .kpi'), function(b){
+    b.onclick=function(){openDrawer(b.dataset.m);};
+  });
+  document.getElementById('drawer').classList.add('on');
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('closeDrawer').focus();
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('on');
+  document.getElementById('scrim').classList.remove('on');
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  A = aggregate(ORDERS, STATE);
+  document.getElementById('rowcount').textContent =
+    n0(A.filteredCount) + ' requests in view';
+  renderReadout(); renderStrip(); renderKpis(); renderTrend();
+  renderClients(); renderGroups(); renderDefects(); renderAging();
+  renderCustodians(); renderTrust();
+}
+
+initFilters();
+render();
+document.getElementById('openDefs').onclick=function(){openDrawer(null);};
+document.getElementById('closeDrawer').onclick=closeDrawer;
+document.getElementById('scrim').onclick=closeDrawer;
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer();});
+
+</script>
+</body>
+</html>
